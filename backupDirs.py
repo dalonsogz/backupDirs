@@ -2,7 +2,7 @@
 
 import sys, shutil, readchar, traceback
 import hashlib, os
-from pathlib import Path, PurePath
+from pathlib import PurePath
 from itertools import filterfalse
 
 
@@ -119,7 +119,7 @@ def copyNewTargets(baseSourcePath, targetPath, targetMD5File, verbose=0):
                     print("Calculating source hash...")
                     hashSource, md5hashes = getHashofDirs(item, verbose)
                     print("Copying: '{}'".format(item.name.strip()))
-                    shutil.copytree(item, PurePath(targetPath, item.name))
+                    shutil.copytree(item,PurePath(targetPath, item.name))
                     print("Calculating target hash...")
                     hashTarget, md5hashes = getHashofDirs(PurePath(targetPath, item.name), verbose)
                     print("hashSource={},hashTarget={}".format(hashSource, hashTarget))
@@ -159,10 +159,10 @@ def main(argv):
     # sourcePath = "D:\_juegos\__nuevo__\_J4"
     # targetPathBase = "P:\\"
     # targetPath = "juegos"
-    baseTargetPath = Path(targetPathBase, targetPath)
-    baseTargetMD5File = Path(targetPathBase, targetMD5File)
-    baseSourcePath = Path(sourcePath)
-    baseSourceFile = Path(sourcePath, sourceFile)
+    baseTargetPath = PurePath(targetPathBase, targetPath)
+    baseTargetMD5File = PurePath(targetPathBase, targetMD5File)
+    baseSourcePath = PurePath(sourcePath)
+    baseSourceFile = PurePath(sourcePath, sourceFile)
 
     # dirHash, md5hashes = getHashofDirs("D:\_juegos\__nuevo__\_J2\Space Rangers HD - A War Apart v2.1.2424 [FitGirl]", verbose)
     # print("dirHash:{}".format(dirHash))

@@ -18,10 +18,22 @@ def printExceptionDetails(inst, message, object):
     logger.error(inst)  # __str__ allows args to be printed directly, but may be overridden in exception subclasses
 
 
-def writeToMD5File(md5File, md5hashes):
-    with open(md5File, "a+") as afile:
+def addToMD5File(md5File, md5hashes):
+    with open(md5File, "a+", encoding="utf-8") as afile:
         for md5hash in md5hashes:
-            afile.write("{} *.\\{}\n".format(md5hash[0], md5hash[1]))
+            afile.write("{} *.{}\n".format(md5hash[0], md5hash[1]))
+
+
+def deleteFromMD5File(md5File, itemName):
+    with open(md5File, "r", encoding="utf-8") as f:
+        lines = f.readlines()
+    itemName = "\\"+itemName+"\\"
+    with open(md5File, "w", encoding="utf-8") as f:
+        for line in lines:
+            if itemName not in line:
+                f.write(line)
+            else:
+                logger.info("found={}".format(line))
 
 
 def getHashofDirs(directory, verbose=0, silent=0):
@@ -57,9 +69,9 @@ def getHashofDirs(directory, verbose=0, silent=0):
     return hasher.hexdigest(), md5hashes
 
 
-def removeOldTargets(baseSourceFile, baseTargetPath, verbose=0, silent=0):
+def removeOldTargets(baseSourceFile, baseTargetPath, targetMD5File, verbose=0, silent=0):
     selectedDirs = []
-    with open(baseSourceFile, 'r') as f:
+    with open(baseSourceFile, 'r', encoding="utf-8") as f:
         item = f.read()
         selectedDirs = list(filter(lambda k: k.startswith('-'), item.split("\n")))
 
@@ -97,6 +109,7 @@ def removeOldTargets(baseSourceFile, baseTargetPath, verbose=0, silent=0):
                     shutil.rmtree(item)
                     selDirs.remove(item.name)
                     oldTargetsDeleted.append(item.name)
+                    deleteFromMD5File(targetMD5File, item.name)
             except Exception as inst:
                 printExceptionDetails(inst, "Error removing", item)
 
@@ -107,7 +120,7 @@ def removeOldTargets(baseSourceFile, baseTargetPath, verbose=0, silent=0):
     return oldTargetsDeleted, oldTargetsNotDeleted, oldTargetsNotFound
 
 
-def copyNewTargets(baseSourcePath, targetPath, targetMD5File, verbose=0, silent=0):
+def copyNewTargets(baseSourcePath, baseTargetPath, targetMD5File, verbose=0, silent=0):
     deletedSources = []
     copiedSources = []
     copyFailed = []
@@ -115,6 +128,7 @@ def copyNewTargets(baseSourcePath, targetPath, targetMD5File, verbose=0, silent=
     # Copy directories from source path to target path
     ########################################################
     baseSourcePathConcrete = Path(baseSourcePath)
+    baseTargetPathConcrete = Path(baseTargetPath).resolve()
     for item in baseSourcePathConcrete.iterdir():
         #  logger.debug("ItemType: '{}'".format(type(item)))
         if item.is_dir():
@@ -130,13 +144,14 @@ def copyNewTargets(baseSourcePath, targetPath, targetMD5File, verbose=0, silent=
                     logger.info("Calculating source hash...")
                     hashSource, md5hashes = getHashofDirs(item, verbose)
                     logger.info("Copying: '{}'".format(item.name.strip()))
-                    shutil.copytree(item, PurePath(targetPath, item.name))
+                    shutil.copytree(item, PurePath(baseTargetPathConcrete, item.name))
                     logger.info("Calculating target hash...")
-                    hashTarget, md5hashes = getHashofDirs(PurePath(targetPath, item.name), verbose)
-                    logger.debug("hashSource={},hashTarget={}".format(hashSource, hashTarget))
+                    hashTarget, md5hashes = getHashofDirs(PurePath(baseTargetPathConcrete, item.name), verbose)
+                    logger.debug("hsashSource={},hashTarget={}".format(hashSource, hashTarget))
                     copiedSources.append(item.name)
                     if hashSource == hashTarget:
-                        writeToMD5File(targetMD5File, md5hashes)
+                        deleteFromMD5File(targetMD5File,item.name)
+                        addToMD5File(targetMD5File, md5hashes)
                         logger.info("Hash copy matches, proceding to delete source directory '{}' (S/N)".format(item))
                         if silent == 0:
                             userResponse = readchar.readkey().upper()
@@ -175,11 +190,12 @@ def main(argv):
     logger = init_logger()
 
     verbose = 2
-    silent = 1
+    silent = 0
     sourceFile = "notas.txt"
     targetMD5File = "checksums.md5"
+    targetPathCustom = None
 
-    if len(sys.argv) == 4:
+    if len(sys.argv) >= 4:
         sourcePath = sys.argv[1]
         targetPathBase = sys.argv[2]
         targetPath = sys.argv[3]
@@ -187,6 +203,10 @@ def main(argv):
         sourcePath = "_source"
         targetPathBase = "E:\prog\python\pruebas"
         targetPath = "juegos"
+
+    sourcePath="D:\_juegos\__nuevo__\_J5"
+    targetPathBase="D:\_juegos\HDs\J5"      # absolute target path (drive path)
+    targetPath="juegos"                     # relative to absolute path (route path)
 
     logger.warning("sourcePath={},targetPathBase={},targetPath={}".format(sourcePath, targetPathBase, targetPath))
 
@@ -203,10 +223,9 @@ def main(argv):
     # deletedSources, copiedSources, copiedSources, notCopied, copyFailed = "","","","",""
 
     oldTargetsDeleted, oldTargetsNotDeleted, oldTargetsNotFound = removeOldTargets(baseSourceFile, baseTargetPath,
-                                                                                   verbose, silent)
+                                                                                   baseTargetMD5File, verbose, silent)
     deletedSources, copiedSources, copiedSources, notCopied, copyFailed = copyNewTargets(baseSourcePath, baseTargetPath,
-                                                                                         baseTargetMD5File, verbose,
-                                                                                         silent)
+                                                                                         baseTargetMD5File, verbose, silent)
 
     print("----------------------------------------------------------------------------------------------------")
     print("oldTargetsNotFound:\n{}".format(oldTargetsNotFound))
